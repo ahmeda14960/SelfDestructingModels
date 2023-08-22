@@ -180,10 +180,17 @@ class GoodBadRegnet(nn.Module):
         return GoodBadRegnet(self.trunk, n_good, n_bad, good_key, bad_key).to(device)
 
 class MLMModel(nn.Module):
+    '''
+    Masked Language Model class, written to wrap base LM 
+    for adaptation.
+    '''
     def __init__(self, bert, config):
         super().__init__()
         self.bert = bert
         self.config = config
+        # Module that only a two-layer dense transform with 
+        # a non-linearity, and a linear decoder layer mapping
+        # the embedding to the vocabulary
         self.cls = BertOnlyMLMHead(bert.config).to(config.device)
 
     def get_output_embeddings(self):
@@ -225,8 +232,10 @@ class MLMModel(nn.Module):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states
         )
-
+        # get base embedding from bert
         sequence_output = outputs[0]
+        # get task specific predictions from
+        # BertMLM head
         prediction_scores = self.cls(sequence_output)
 
         loss_fct = CrossEntropyLoss()  # -100 index = padding token

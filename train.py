@@ -32,7 +32,8 @@ def append_to_keys(d, tag):
 
 def average_dicts(dicts):
     lists = defaultdict(list)
-
+    # for each key append value to list
+    # in dict and average per key
     for d in dicts:
         for k, v in d.items():
             lists[k].append(v)
@@ -43,27 +44,40 @@ def average_dicts(dicts):
 class Trainer:
     def __init__(self, config, model, train, val1, val2, test, mlm_data_sampler, aux_eval_samplers=[]):
         self.model = model
+        # I think the mlm is loss on a masked language model
+        # but the second condition here decides if we distill
+        # outputs from the original model to constrain MLAC
         if config.l_mlm > 0 and config.mlm.distill == True:
             self.original_model = copy.deepcopy(model)
         self.train_set = train
         self.aux_eval_samplers = aux_eval_samplers
+        # two validation sets because val requires
+        # 1) Taking blocked pretrained params, then fine-tuning (val1)
+        # 2) Evaluating perf of fine-tuned model on heldout dataset (val2)
         self.val1_set = val1
         self.val2_set = val2
         self.test_set = test
         self.config = config
         if "mi_loss_predictor" in config and self.config.l_mi > 0:
+            # what is this mi_loss_predictor?
             self.predictor = hydra.utils.instantiate(config.mi_loss_predictor).to(config.device)
             self.predictor_opt = hydra.utils.instantiate(config.mi_loss_predictor_opt)(self.predictor.parameters())
 
         self.adversarial_param_list = []
         self.adversarial_params = {}
         if config.inner_loop_learn_lr:
+            # tune the inner learning rate for the adversary during
+            # meta-training
             if config.bad_adapt_mode != "maml":
                 raise ValueError(f"We currently don't support meta-learned learning rates with {config.bad_adapt_mode}")
             self.adversarial_params["lr"] = torch.tensor([3e-4], requires_grad=True)
             self.adversarial_param_list.append(self.adversarial_params["lr"])
 
         if config.inner_loop_learn_adv_head:
+            # learn a separate linear head on top of the base parameters
+            # during adversarial adaptation. Seems always necessary?
+            # Unless this assumes we start with a "fresh" linear head
+            # and otherwise we'd adapt the base model with a trained linear head
             self.adversarial_params["linear_head"] = copy.deepcopy(self.model.linear)
             self.adversarial_param_list.extend(self.adversarial_params["linear_head"].parameters())
 
@@ -78,21 +92,29 @@ class Trainer:
 
         self.opt = torch.optim.Adam(self.model.parameters(), config.lr)
         if not self.config.debug and not self.config.eval_only:
-            wandb_dir = tempfile.mkdtemp()
-            LOG.info(f"Writing wandb run to {wandb_dir}")
+            wandb_cache_dir = utils.cache_dir()
+            wandb_dir = f"{wandb_cache_dir}/metadata"
+            if not os.path.exists(wandb_dir):
+                os.mkdir(wandb_dir)
+            LOG.info(f"Writing # wandb run to {wandb_dir}")
             wandb.init(
                 project="selfdestruct",
                 entity="selfdestruct",
                 config=utils.flatten_dict(self.config),
                 dir=wandb_dir
             )
-            if self.config.batch_hash is not None:
-                wandb.run.name = wandb.run.name + f" [{self.config.batch_hash}]"
-                wandb.run.save()
+            # always generate batch_hash
+            if self.config.batch_hash is None:
+                chars='qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890'
+                batch_hash = ''.join([random.choice(chars) for _ in range(7)])
+                self.config.batch_hash = batch_hash
+            wandb.run.name = wandb.run.name + f" [{self.config.batch_hash}]"
+            wandb.run.save()
 
         self.best_val_loss = 1e9
 
     def do_step(self, sampler, train=False):
+        # main logic of code base, contains one step of MLAC training
         outer_batch = sampler.sample(self.config.device)
 
         SHOULD_ADAPT_GOOD = self.config.l_good_adapted > 0 or self.config.l_good_adapted_bad > 0
@@ -223,6 +245,7 @@ class Trainer:
         if self.config.l_mi > 0:
             # First, do a training step on the predictor
             if self.config.predictor_train_steps > 0 and self.config.predictor_train_steps < 1:
+                # TODO: When does this happen?
                 period = int(1./self.config.predictor_train_steps)
                 if self.global_it % period == 0:
                     predictor_train_steps = 1
@@ -251,6 +274,8 @@ class Trainer:
         info["loss/total"] = total_loss.item()
 
         if train:
+            # actually update adversarial params, backprop to base model
+            # and train on auxiliary tasks
             if self.config.inner_loop_learn_lr or self.config.inner_loop_learn_adv_head:
                 for p, g in zip(self.adversarial_param_list, torch.autograd.grad((bad_adapted_loss / self.config.accumulate_steps), self.adversarial_param_list, retain_graph=True, allow_unused=True)):
                     if g is not None:
@@ -281,10 +306,13 @@ class Trainer:
         return info
 
     def train_step(self):
+        # helper function for one MLAC step on train set
         info = self.do_step(self.train_set, train=True)
         return append_to_keys(info, "train")
 
     def val_step(self):
+        # helper function to evaluate MLAC on val set
+        # WITHOUT adaptation/training
         infos = []
         for _ in tqdm(range(self.config.val_steps), desc="Running validation"):
             infos.append(self.do_step(self.val1_set, train=False))
@@ -312,6 +340,9 @@ class Trainer:
         return append_to_keys(infos[-1], "val")
 
     def eval_step(self, only_bad=False):
+        # This is where we test how well the model 
+        # performs even with test time finetuning.
+        # on held out data splits
         LOG.info("Beginning BAD evaluation")
         info = adapt_model_evaluation(self.model, self.val1_set, self.val2_set, self.config, key=self.config.data.bad_key)
         if only_bad:
@@ -361,6 +392,7 @@ class Trainer:
                     LOG.info(eval_info)
                 if not self.config.debug and not self.config.eval_only:
                     wandb.log(val_info, step=it)
+                    pass
                     if not self.config.no_eval:
                         wandb.log(eval_info, step=it)
 
@@ -373,6 +405,7 @@ def run(cfg):
     LOG.info(f"Project base directory: {base_dir}")
     LOG.info(f"Run directory: {os.getcwd()}")
     os.environ["WANDB_CACHE_DIR"] = utils.cache_dir()
+    # Used for Debugging
     torch.autograd.set_detect_anomaly(cfg.detect_anomaly)
 
     np.random.seed(cfg.seed)

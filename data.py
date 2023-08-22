@@ -256,6 +256,7 @@ class DataSampler(torch.utils.data.IterableDataset):
             self.workers = [self.workers[idx] if self.workers[idx].is_alive() else threading.Thread(target=self._worker, args=(idx,)) for idx in range(self.n_workers)]
 
         for w in self.workers:
+            time.sleep(1)
             if not w.is_alive():
                 w.start()
 

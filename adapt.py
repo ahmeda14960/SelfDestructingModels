@@ -145,6 +145,18 @@ def fine_tuning_train_maml(model, sampler, steps, lr, config, output_key, outer_
 def fine_tune_evaluation(model, max_steps, val_sampler, test_sampler, lr, config, eval_key, optimizer="adam", 
                          freeze_intermediate=False, reset_head=False, deterministic=False, batch_size=None,
                          return_model=False, seed=0, full_test_set=False):
+    """
+    Fine tune model on validation set and evaluate on test set.
+
+    This adapts the model by training on the validation set with 
+    stochastic gradient descent for max_steps with the provided
+    hyperparameters.
+
+    It evaluates the adapted model on the test set periodically.
+
+    Returns training and test curves, best accuracy, and percentiles
+    solved to analyze how well the model adapts.
+    """
     if deterministic:
         rstate = random.getstate()
         npstate = np.random.get_state()
@@ -253,6 +265,35 @@ def get_test_loss(fm, sampler, device, key, steps=50, full_test_set=False):
     return np.mean(test_losses), np.mean(test_accs)
 
 def adapt_model_evaluation(model, val_sampler, test_sampler, config, key, return_model=False, full_test_set=False):
+    """
+    Tune hyperparameters and evaluate a model on a given task using the validation and test set.
+
+    Args:
+        model: The model to evaluate.
+        val_sampler: Validation set sampler.
+        test_sampler: Test set sampler.
+        config: The config dict with hyperparameters.
+        key: The output key corresponding to the task.
+        return_model: Whether to return the adapted model.
+        full_test_set: Whether to use the full test set.
+
+    Returns:
+        Dict of results if return_model=False. Otherwise the adapted model.
+
+    This does:
+        1. Hyperparameter tuning on the validation set to find the 
+           best learning rate, optimizer, etc.
+        2. Adapts the model on the validation set with best hyperparameters.
+        3. Evaluates the adapted model on the test set multiple 
+           times with different seeds.
+        4. Returns summary stats like average accuracy, loss,
+           percentiles solved, etc.
+
+    The results show how well the model can adapt to the given
+    task and how stable the adaptation process is across runs.
+    Used to analyze if meta-learning succeeds in allowing positive
+    adaptation and preventing negative adaptation.
+    """
     OPT_EARLY_STOP = config.adversary.hparam_early_stop_trials
     def stop_fn(trials, best_loss=None, iteration_no_progress=0):
         new_loss = trials.trials[len(trials.trials) - 1]["result"]["loss"]
