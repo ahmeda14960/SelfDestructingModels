@@ -23,6 +23,9 @@ def uuid(digits=8):
     return uuid.uuid_value
 
 
+# find length of longest array
+# for all others pad them to the same size with nan
+# then compute average ignoring Nan
 def ragged_average(arrays):
     max_len = max(len(a) for a in arrays)
     stacked = np.stack([np.pad(a, (0, max_len - len(a)), constant_values=float('nan')) for a in arrays])

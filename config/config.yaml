@@ -11,7 +11,8 @@ seed: 0
 train_steps: 50000
 val_steps: 50
 val_every: 2500
-device: cuda
+device: cuda:4
+# turns off wandb, model saving
 debug: False
 skip_initial_eval: False
 deterministic: False

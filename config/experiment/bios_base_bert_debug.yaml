@@ -1,0 +1,38 @@
+# @package _global_
+# Evaluate only the pretrained base bert model
+# You need to set the eval_network type to pretrained
+# and it will then only run the evaluation loops
+exp_name: "bios_base_bert_debug"
+
+lr: 1e-5
+batch_size: 20
+
+l_linear_mi: 0.0
+l_bad_adapted_grad: 0.0
+l_good_base: 0.0
+
+max_adapt_steps: 16
+batch_size_search_space: [12, 24, 48]
+
+data:
+  bad_key: "genders"
+  good_key: "professions"
+
+mi_loss_predictor:
+  width: 128
+
+# Configurations for evaluation only
+eval_only: True
+eval_only_bad: False
+eval_network_type: "pretrained" # Can be "pretrained", "random", "good-tuned", "loaded". If loaded please also provide cfg.eval_model_path
+aux_eval_tasks: []
+eval_hyperopt_rounds: 1
+hyperopt_max_evals: 1
+post_hyperopt_eval_runs: 1
+
+# debug set to false since 
+# we're debugging
+debug: False
+
+
+bert_model: "google/bert_uncased_L-2_H-128_A-2"

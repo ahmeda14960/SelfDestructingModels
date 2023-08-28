@@ -11,3 +11,5 @@ hyperopt
 torch_maml
 hydra-core
 git+https://github.com/eric-mitchell/higher_selfdestruct@c473e03
+cvxpy
+cvxpylayers

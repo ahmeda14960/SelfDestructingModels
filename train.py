@@ -11,7 +11,10 @@ import wandb
 from tqdm import tqdm
 import copy
 from omegaconf import OmegaConf
-OmegaConf.register_new_resolver("uuid", lambda: utils.uuid())
+if OmegaConf.has_resolver("uuid"):
+    pass
+else:
+    OmegaConf.register_new_resolver("uuid", lambda: utils.uuid())
 
 
 from model import MLMModel
@@ -87,11 +90,12 @@ class Trainer:
             self.adversarial_params_opt = None
 
         if config.l_mlm > 0:
+            # should be above zero when we want to adapt base bert to task
             self.mlm_data_sampler = mlm_data_sampler
             self.mlm_head = MLMModel(self.model.trunk, config)
 
         self.opt = torch.optim.Adam(self.model.parameters(), config.lr)
-        if not self.config.debug and not self.config.eval_only:
+        if not self.config.debug:
             wandb_cache_dir = utils.cache_dir()
             wandb_dir = f"{wandb_cache_dir}/metadata"
             if not os.path.exists(wandb_dir):
@@ -99,7 +103,6 @@ class Trainer:
             LOG.info(f"Writing # wandb run to {wandb_dir}")
             wandb.init(
                 project="selfdestruct",
-                entity="selfdestruct",
                 config=utils.flatten_dict(self.config),
                 dir=wandb_dir
             )
@@ -354,6 +357,7 @@ class Trainer:
         info2 = append_to_keys(info, "eval_good")
         LOG.info("Beginning additional GOOD evaluations")
         _return_dict = {**info1, **info2}
+        LOG.info(f"Evaluating on {len(self.aux_eval_samplers)} aux tasks!")
         for (dataset, aux_num_labels, aux_train, aux_val) in self.aux_eval_samplers:
             # For aux tasks we create new model heads.
                         # don't restrict sample size on auxiliary tasks?
@@ -390,6 +394,8 @@ class Trainer:
                 LOG.info(val_info)
                 if not self.config.no_eval:
                     LOG.info(eval_info)
+                # if we're not debugging or evaluating
+                # log val
                 if not self.config.debug and not self.config.eval_only:
                     wandb.log(val_info, step=it)
                     pass
@@ -405,6 +411,7 @@ def run(cfg):
     LOG.info(f"Project base directory: {base_dir}")
     LOG.info(f"Run directory: {os.getcwd()}")
     os.environ["WANDB_CACHE_DIR"] = utils.cache_dir()
+    os.environ["WANDB_API_KEY"] = "3d91078de9092186db48b81253a2e8902563454b"
     # Used for Debugging
     torch.autograd.set_detect_anomaly(cfg.detect_anomaly)
 
@@ -414,7 +421,8 @@ def run(cfg):
     torch.use_deterministic_algorithms(cfg.deterministic and not cfg.debug, warn_only=True)
 
     mlm_train_sampler = None
-    if cfg.exp_name == "bios":
+    # seems like a bug? the bios repro and lr head experiments would fail here...
+    if "bios" in cfg.exp_name:
         tokenizer = transformers.AutoTokenizer.from_pretrained(cfg.bert_model)
 
         from data import build_bios_datasets
@@ -459,7 +467,7 @@ def run(cfg):
     if cfg.eval_only:
         loaded_model_conf = None
         if cfg.eval_network_type == "random":
-            prev_model= copy.deepcopy(model)
+            prev_model = copy.deepcopy(model)
             for module in model._modules.values(): module.apply(model.trunk._init_weights)
             assert not utils.params_same(prev_model.parameters(), model.parameters())
             # Free pointer
@@ -488,9 +496,14 @@ def run(cfg):
 
         LOG.info(eval_info)
         
-        if not cfg.debug and not cfg.eval_only:
+        # why does eval only not use wandb?
+        if not cfg.debug:
             wandb.log(eval_info, step=0)
         with open("eval_info.json", "w") as f:
+            # we need to check for "curve" in the key name
+            # to avoid trying to serialize a wandb plot object which fails
+            # ... right now it's failing anyway though
+            # update failed bc some curves didn't have curves in key
             f.write(json.dumps({ k: v for k, v in eval_info.items() if "curve" not in k}))
     else:
         trainer = Trainer(cfg, model, train, val1, val2, test, mlm_train_sampler, aux_eval_samplers)
