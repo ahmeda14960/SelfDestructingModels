@@ -20,3 +20,4 @@ ebatch model_eval_11      slconf_jag "python train.py -m hydra/launcher=nlp_jobl
 
 # nlprun command
 nlprun -a sdm -n sdm_sweep -w /iris/u/ahmedah/SelfDestructingModels -o /iris/u/ahmedah/SelfDestructingModels/slurm.out -p high 'python3 -m train experiment=bios_repro eval_only=True eval_network_type=random seed=0'
+'python -m train --multirun experiment=bios_repro eval_only=True adversary.n_examples=20,50,100,200 eval_network_type=random seed=0'

@@ -6,12 +6,12 @@ import json
 import seaborn as sns
 import pandas as pd
 
-mydir = "/u/scr/nlp/data/found_runs"
+mydir = "outputs/None/bios_repro__1.0__1.0__0.0__16__2023-08-28_20-08-47__51880819"
 _aggregated_data = defaultdict(list)
 
 skip_tasks = ["regression"]
 
-graph = "grad"
+graph = "best"
 if graph == "best":
     models = [("pretrained" , {}, 'BERT'), 
             ('random', {}, 'Random'),
@@ -58,11 +58,12 @@ elif graph == "mi":
                     ]
 
 for dirpath, dirnames, filenames in os.walk(mydir):
-    # import pdb; pdb.set_trace()
+    import ipdb; ipdb.set_trace()
     if "eval_info.json" in filenames:
         # We're in a result dir
         overrides = OmegaConf.load(os.path.join(dirpath, ".hydra/overrides.yaml"))
         _override_dict = {}
+        # get seed, eval type and experiment
         for override in overrides:
             k, v = override.split("=")
             _override_dict[k] = v
@@ -71,9 +72,13 @@ for dirpath, dirnames, filenames in os.walk(mydir):
             continue
         eval_type = _override_dict["eval_network_type"]
 
+        # if the eval type isn't relevant to graph
+        # continue
         if eval_type not in [x[0] for x in models]:
             continue
 
+        # load model trained weights if necessary
+        # otherwise it's a pretrained / random model
         if eval_type == "loaded":
             overrides = OmegaConf.load(os.path.join(dirpath, "loaded_model_conf.yaml"))
             _loaded_model_override_dict = {}

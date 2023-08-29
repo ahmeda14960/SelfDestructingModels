@@ -519,7 +519,7 @@ def run(cfg):
         LOG.info(eval_info)
         
         # why does eval only not use wandb?
-        if not cfg.debug and not self.config.eval_only:
+        if not cfg.debug and not cfg.eval_only:
             wandb.log(eval_info, step=0)
         with open("eval_info.json", "w") as f:
             # we need to check for "curve" in the key name
