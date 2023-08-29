@@ -6,7 +6,7 @@ import json
 import seaborn as sns
 import pandas as pd
 
-mydir = "outputs/None/bios_repro__1.0__1.0__0.0__16__2023-08-28_20-08-47__51880819"
+mydir = "/lfs/mercury2/0/ahmedah/SelfDestructingModels/multirun/2023-08-29"
 _aggregated_data = defaultdict(list)
 
 skip_tasks = ["regression"]
@@ -60,8 +60,8 @@ elif graph == "mi":
             'l_linear_mi' : '1.0', 'l_bad_adapted_grad' : '0.0'}, 'Head adjustment')
                     ]
 
+import ipdb; ipdb.set_trace()
 for dirpath, dirnames, filenames in os.walk(mydir):
-    import ipdb; ipdb.set_trace()
     if "eval_info.json" in filenames:
         # We're in a result dir
         overrides = OmegaConf.load(os.path.join(dirpath, ".hydra/overrides.yaml"))
@@ -124,7 +124,12 @@ for dirpath, dirnames, filenames in os.walk(mydir):
             # import pdb; pdb.set_trace()
             _aggregated_data["solve_datapoints"].append(_results[solvesteps_key + "_eval_bad"])
         _aggregated_data["Gender Accuracy (Post-adaptation)"].append(_results[acc_key])
-
+        try:
+            # try to also check for Profession grading after fine-tuning
+            _aggregated_data["Profession Accuracy (Post-adaptation)"].append(_results["acc_eval_good"])
+        except:
+            print("No good evals found!")
+import ipdb; ipdb.set_trace()
 df = pd.DataFrame.from_dict(_aggregated_data)
 
 
@@ -134,8 +139,16 @@ cmap = sns.color_palette("colorblind", len(df["Model"].unique()))
 sns.relplot(
     data=df, x="Dataset Size", y="Gender Accuracy (Post-adaptation)", col="experiment",
     hue="Model", style="Model", kind="line", palette=cmap
-).figure.savefig("out.png")
+).figure.savefig("bad_adapt.png")
 
+try:
+    sns.relplot(
+        data=df, x="Dataset Size", y="Profession Accuracy (Post-adaptation)", col="experiment",
+        hue="Model", style="Model", kind="line", palette=cmap
+    ).figure.savefig("good_adapt.png")
+except:
+    print("no good data to log!")
+    
 sns.relplot(
     data=df, x="Dataset Size", y="solve_datapoints", col="experiment",
     hue="Model", style="Model", kind="line", palette=cmap
