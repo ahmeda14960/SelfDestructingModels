@@ -21,3 +21,7 @@ ebatch model_eval_11      slconf_jag "python train.py -m hydra/launcher=nlp_jobl
 # nlprun command
 nlprun -a sdm -n sdm_sweep -w /iris/u/ahmedah/SelfDestructingModels -o /iris/u/ahmedah/SelfDestructingModels/slurm.out -p high 'python3 -m train experiment=bios_repro eval_only=True eval_network_type=random seed=0'
 'python -m train --multirun experiment=bios_repro eval_only=True adversary.n_examples=20,50,100,200 eval_network_type=random seed=0'
+# AC
+python -m train --multirun experiment=bios_repro eval_only=True adversary.n_examples=20,50,100,200 eval_network_type=loaded  +eval_loaded_model_dir=/lfs/ampere1/0/ahmedah/SelfDestructingModels/outputs/None/bios_ac__1.0__1.0__0.0__0__2023-08-27_18-29-49__19879353/ seed=0
+# MLAC
+python -m train --multirun experiment=bios_repro eval_only=True adversary.n_examples=20,50,100,200 eval_network_type=loaded  +eval_loaded_model_dir=/lfs/ampere1/0/ahmedah/SelfDestructingModels/outputs/None/bios_repro__1.0__1.0__0.0__16__2023-08-27_21-29-09__87983824/ seed=0

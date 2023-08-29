@@ -20,12 +20,15 @@ if graph == "best":
                         'l_bad_adapted_grad' : '0.0',
                         'max_adapt_steps' : '0',
                         'train_steps' : '5000'}, 'BERT (tuned, professions)'),
+            # l_bad_adapted should def be 1, otherwise
+            # how do we minimize loss adapting on bad task?
             ('loaded', {'l_bad_adapted' : '0.0',
                         'l_linear_mi' : '1.0',
                         'l_bad_adapted_grad' : '0.0',
                         'max_adapt_steps' : '16'}, 'MLAC'),
+            # need to change l_linear_mi back to 0.0 and re-run exps
             ('loaded', {'l_bad_adapted' : '1.0',
-                'l_linear_mi' : '0.0',
+                'l_linear_mi' : '1.0',
                 'l_bad_adapted_grad' : '0.0',
                 'max_adapt_steps' : '0'}, 'AC')
                         ]
