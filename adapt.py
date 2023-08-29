@@ -374,18 +374,19 @@ def adapt_model_evaluation(model, val_sampler, test_sampler, config, key, return
         }
 
         #if not config.debug:
+        if not config.eval_only:
         # how did this work? curve isn't included but this gets returned without debug / eval only mode
         # and the info dict is still saved as a json
-        info[f"AVG_LOSS_curve/{key}"] = wandb_plot_list(ragged_average([run["loss_curve"] for run in eval_runs]), title=f"AVG_LOSS/{key}")
-        info[f"AVG_LOSS_curve/{key}_test"] = wandb_plot_list(ragged_average([run["test_loss_curve"] for run in eval_runs]), title=f"AVG_LOSS/{key}_test")
-        info[f"AVG_ACC_curve/{key}"] = wandb_plot_list(ragged_average([run["acc_curve"] for run in eval_runs]), title=f"AVG_ACC/{key}")
-        info[f"AVG_ACC_curve/{key}_test"] = wandb_plot_list(ragged_average([run["test_acc_curve"] for run in eval_runs]), title=f"AVG_ACC/{key}_test")
+            info[f"AVG_LOSS_curve/{key}"] = wandb_plot_list(ragged_average([run["loss_curve"] for run in eval_runs]), title=f"AVG_LOSS/{key}")
+            info[f"AVG_LOSS_curve/{key}_test"] = wandb_plot_list(ragged_average([run["test_loss_curve"] for run in eval_runs]), title=f"AVG_LOSS/{key}_test")
+            info[f"AVG_ACC_curve/{key}"] = wandb_plot_list(ragged_average([run["acc_curve"] for run in eval_runs]), title=f"AVG_ACC/{key}")
+            info[f"AVG_ACC_curve/{key}_test"] = wandb_plot_list(ragged_average([run["test_acc_curve"] for run in eval_runs]), title=f"AVG_ACC/{key}_test")
 
-        for idx, run in enumerate(eval_runs):
-            info[f"{key}_eval_loss_curves/curve{idx}"] = wandb_plot_list(run["loss_curve"], title=f"eval_loss{idx}_{key}")
-            info[f"{key}_eval_acc_curves/curve{idx}"] = wandb_plot_list(run["acc_curve"], title=f"eval_acc{idx}_{key}")
-            info[f"{key}_test_eval_loss_curves/curve{idx}"] = wandb_plot_list(run["test_loss_curve"], title=f"test_eval_loss{idx}")
-            info[f"{key}_test_eval_acc_curves/curve{idx}"] = wandb_plot_list(run["test_acc_curve"], title=f"test_eval_acc{idx}")
+            for idx, run in enumerate(eval_runs):
+                info[f"{key}_eval_loss_curves/curve{idx}"] = wandb_plot_list(run["loss_curve"], title=f"eval_loss{idx}_{key}")
+                info[f"{key}_eval_acc_curves/curve{idx}"] = wandb_plot_list(run["acc_curve"], title=f"eval_acc{idx}_{key}")
+                info[f"{key}_test_eval_loss_curves/curve{idx}"] = wandb_plot_list(run["test_loss_curve"], title=f"test_eval_loss{idx}")
+                info[f"{key}_test_eval_acc_curves/curve{idx}"] = wandb_plot_list(run["test_acc_curve"], title=f"test_eval_acc{idx}")
 
         return info
 

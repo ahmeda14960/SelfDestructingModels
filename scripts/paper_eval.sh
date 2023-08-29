@@ -17,3 +17,6 @@ ebatch model_eval_8      slconf_jag "python train.py -m hydra/launcher=nlp_jobli
 ebatch model_eval_9      slconf_jag "python train.py -m hydra/launcher=nlp_joblib experiment=regression eval_only=True eval_network_type=loaded adversary.n_examples=20,50,100,200 seed=0,1,2,3,4,5 +eval_loaded_model_dir=/u/scr/nlp/data/sd_models/H63mlVF/regression__1.0__0.0__1.0__0__2022-05-19_11-26-58__8601468/ eval_only_bad=True batch_hash=$ID"
 ebatch model_eval_10      slconf_jag "python train.py -m hydra/launcher=nlp_joblib experiment=regression eval_only=True eval_network_type=loaded adversary.n_examples=20,50,100,200 seed=0,1,2,3,4,5 +eval_loaded_model_dir=/u/scr/nlp/data/sd_models/H63mlVF/regression__1.0__0.0__1.0__16__2022-05-19_11-26-58__4720976/ eval_only_bad=True batch_hash=$ID"
 ebatch model_eval_11      slconf_jag "python train.py -m hydra/launcher=nlp_joblib experiment=regression eval_only=True eval_network_type=loaded adversary.n_examples=20,50,100,200 seed=0,1,2,3,4,5 +eval_loaded_model_dir=/u/scr/nlp/data/sd_models/H63mlVF/regression__1.0__0.0__1.0__4__2022-05-19_11-26-58__15485531/ eval_only_bad=True batch_hash=$ID"
+
+# nlprun command
+nlprun -a sdm -n sdm_sweep -w /iris/u/ahmedah/SelfDestructingModels -o /iris/u/ahmedah/SelfDestructingModels/slurm.out -p high 'python3 -m train experiment=bios_repro eval_only=True eval_network_type=random seed=0'

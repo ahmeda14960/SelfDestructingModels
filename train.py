@@ -95,7 +95,7 @@ class Trainer:
             self.mlm_head = MLMModel(self.model.trunk, config)
 
         self.opt = torch.optim.Adam(self.model.parameters(), config.lr)
-        if not self.config.debug:
+        if not self.config.debug and not self.config.eval_only:
             wandb_cache_dir = utils.cache_dir()
             wandb_dir = f"{wandb_cache_dir}/metadata"
             if not os.path.exists(wandb_dir):
@@ -497,7 +497,7 @@ def run(cfg):
         LOG.info(eval_info)
         
         # why does eval only not use wandb?
-        if not cfg.debug:
+        if not cfg.debug and not self.config.eval_only:
             wandb.log(eval_info, step=0)
         with open("eval_info.json", "w") as f:
             # we need to check for "curve" in the key name
