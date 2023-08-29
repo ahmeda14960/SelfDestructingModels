@@ -22,7 +22,7 @@ from adapt import get_adapted_predictions, adapt_model_evaluation
 from losses import cls_loss, cls_acc, linear_adversary_loss
 import utils
 import json
-
+from data import BiosDataSampler
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s [%(filename)s:%(lineno)d] %(message)s',
                     level=logging.INFO)
@@ -45,7 +45,7 @@ def average_dicts(dicts):
 
 
 class Trainer:
-    def __init__(self, config, model, train, val1, val2, test, mlm_data_sampler, aux_eval_samplers=[]):
+    def __init__(self, config, model, train, val1, val2, test, mlm_data_sampler, aux_eval_samplers=[], test_only=False):
         self.model = model
         # I think the mlm is loss on a masked language model
         # but the second condition here decides if we distill
@@ -59,6 +59,10 @@ class Trainer:
         # 2) Evaluating perf of fine-tuned model on heldout dataset (val2)
         self.val1_set = val1
         self.val2_set = val2
+        self.test_only_mode = test_only
+        if test_only:
+            total_val_data = val1.data + val2.data
+            self.val_set = BiosDataSampler(total_val_data, val1.prof_map, val1.gender_map, val1.tok, val1.batch_size)
         self.test_set = test
         self.config = config
         if "mi_loss_predictor" in config and self.config.l_mi > 0:
@@ -107,6 +111,8 @@ class Trainer:
                 dir=wandb_dir
             )
             # always generate batch_hash
+            #TODO: figure out how this affects how
+            # we see the data.
             if self.config.batch_hash is None:
                 chars='qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890'
                 batch_hash = ''.join([random.choice(chars) for _ in range(7)])
@@ -343,17 +349,33 @@ class Trainer:
         return append_to_keys(infos[-1], "val")
 
     def eval_step(self, only_bad=False):
+        '''
+        Helper function to evaluate model on fine-tuning performance
+        over good / bad tasks
+        
+        only_bad: Only evaluate fine-tuning performance over bad dataset
+        test: Flag for test-time evaluation. During training, we split validation
+        into two sets, one used for fine-tuning base parameters and the other for 
+        validation. During test time both validation sets are used for fine-tuning
+        and the test set is used for evaluation.
+        '''
         # This is where we test how well the model 
         # performs even with test time finetuning.
         # on held out data splits
         LOG.info("Beginning BAD evaluation")
-        info = adapt_model_evaluation(self.model, self.val1_set, self.val2_set, self.config, key=self.config.data.bad_key)
+        if self.test_only_mode:
+            info = adapt_model_evaluation(self.model, self.val_set, self.test_set, self.config, key=self.config.data.bad_key)            
+        else:
+            info = adapt_model_evaluation(self.model, self.val1_set, self.val2_set, self.config, key=self.config.data.bad_key)
         if only_bad:
             return info
         # TODO: make this align with do_step logging
         info1 = append_to_keys(info, "eval_bad")
         LOG.info("Beginning GOOD evaluation")
-        info = adapt_model_evaluation(self.model, self.val1_set, self.val2_set, self.config, key=self.config.data.good_key)
+        if self.test_only_mode:
+            info = adapt_model_evaluation(self.model, self.val_set, self.test_set, self.config, key=self.config.data.good_key)           
+        else:
+            info = adapt_model_evaluation(self.model, self.val1_set, self.val2_set, self.config, key=self.config.data.good_key)
         info2 = append_to_keys(info, "eval_good")
         LOG.info("Beginning additional GOOD evaluations")
         _return_dict = {**info1, **info2}
@@ -490,7 +512,7 @@ def run(cfg):
         if loaded_model_conf is not None:
             OmegaConf.save(config=loaded_model_conf, f="loaded_model_conf.yaml")
 
-        trainer = Trainer(cfg, model, train, val1, val2, test, mlm_train_sampler, aux_eval_samplers)
+        trainer = Trainer(cfg, model, train, val1, val2, test, mlm_train_sampler, aux_eval_samplers, test_only=cfg.eval_only)
         
         eval_info = trainer.eval_step(cfg.eval_only_bad)
 
