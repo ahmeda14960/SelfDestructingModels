@@ -1,0 +1,8 @@
+env_a40
+--partition jag-hi
+--time 120:00:00
+--cpus-per-task 4
+--mem 32G
+--gres=gpu:1
+--constraint 24G
+--output slurm/%j.out

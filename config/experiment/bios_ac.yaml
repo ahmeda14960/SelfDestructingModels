@@ -1,7 +1,7 @@
 # @package _global_
 # this is presumably reprocuding how the final config
 # for bios was found?
-exp_name: "bios_repro"
+exp_name: "bios_ac"
 
 lr: 1e-4
 batch_size: 10

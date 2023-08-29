@@ -51,6 +51,8 @@ def cache_dir():
             path = "/scr"
     elif hostname.startswith("mercury2"):
         path = "/lfs/mercury2/0"
+    elif hostname.startswith("ampere1"):
+        path = "/lfs/ampere1/0"        
     else:
         raise RuntimeError(f"Couldn't automatically identify local disk for host {hostname}")
 

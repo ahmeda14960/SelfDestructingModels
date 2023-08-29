@@ -165,7 +165,7 @@ def split_data(data, train_p, val_p, no_test=False):
         )
 
 class DataSampler(torch.utils.data.IterableDataset):
-    def __init__(self, data, batch_size, n_workers=4, queue_size=32):
+    def __init__(self, data, batch_size, n_workers=0, queue_size=32):
         self.seed = np.random.randint(int(1e9)) # for if we need to generate a fixed subset
         self.data = data
         self.batch_size = batch_size
